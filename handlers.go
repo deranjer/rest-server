@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asdine/storm/v3"
 	"github.com/miolini/datacounter"
 	"github.com/prometheus/client_golang/prometheus"
 	"goji.io/middleware"
@@ -35,6 +36,7 @@ type Server struct {
 	Prometheus   bool
 	Debug        bool
 	MaxRepoSize  int64
+	Database     *storm.DB
 
 	repoSize int64 // must be accessed using sync/atomic
 }
@@ -260,6 +262,22 @@ func (s *Server) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = r.Body.Close()
+
+	fmt.Printf("%+v\n", r)
+	repoPath := filepath.Dir(cfg)
+	fmt.Println("Creating repo in database! ", repoPath)
+	client := strings.SplitN(r.RemoteAddr, ":", -1)
+	dbRepo := Repository{
+		Path:         repoPath + "/",
+		DateCreated:  time.Now(),
+		LastPushDate: time.Now(),
+		Client:       client[0],
+	}
+	err = CreateRepoDB(dbRepo, s.Database)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 }
 
 // DeleteConfig removes a config.
@@ -598,6 +616,28 @@ func (s *Server) SaveBlob(w http.ResponseWriter, r *http.Request) {
 		metricBlobWriteTotal.With(labels).Inc()
 		metricBlobWriteBytesTotal.With(labels).Add(float64(written))
 	}
+	// repoString := strings.Trim(r.URL.String(), s.Path) // TODO: Not needed?
+	// fmt.Println("Repo String: ", repoString)
+	cleanRepoString := filepath.Dir(filepath.Dir(r.URL.String()))
+	lastChar := cleanRepoString[len(cleanRepoString)-1:]
+	if lastChar != "/" {
+		cleanRepoString = cleanRepoString + "/"
+	}
+	fmt.Println("Repo Name: ", cleanRepoString)
+	fmt.Println("Creating file in Repo!")
+	dbRepo := RepoBlob{
+		Name:         pat.Param(r, "name"),
+		Type:         pat.Param(r, "type"),
+		Path:         path,
+		DateModified: time.Now(),
+		RepoPath:     s.Path + cleanRepoString,
+	}
+	err = CreateRepoBlob(dbRepo, s.Database)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // DeleteBlob deletes a blob from the repository.
@@ -691,4 +731,16 @@ func (s *Server) CreateRepo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// fmt.Println("Creating repo in database! ", cfg)
+	// dbRepo := Repository{
+	// 	Path:         repo + "/",
+	// 	DateCreated:  time.Now(),
+	// 	LastPushDate: time.Now(),
+	// 	client:       "testClient",
+	// }
+	// err = CreateRepoDB(dbRepo, s.Database)
+	// if err != nil {
+	// 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	// 	return
+	// }
 }

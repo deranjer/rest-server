@@ -1,0 +1,12 @@
+{{ define "_sidebar" }}
+<aside class="menu">
+    <p class="menu-label">
+        Repos - {{ .RepoCount }}
+    </p>
+    <ul class="menu-list">
+        {{ range .Repos }}
+        <li><a href="/repo/{{ .RepoID }}">{{ .RepoID }} - {{ .Path }}</a></li>
+        {{ end }}
+    </ul>
+</aside>
+{{ end }}

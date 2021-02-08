@@ -1,0 +1,25 @@
+mkdir /workspaces/Programming/testRepo2/
+echo "This is a test file V1" > /workspaces/Programming/testRepo2/test.txt
+restic -r rest:http://localhost:8000 init
+
+restic -r rest:http://localhost:8000/ --verbose backup /workspaces/Programming/testRepo2/test.txt
+
+echo "This is a test file V2" > /workspaces/Programming/testRepo2/test2.txt
+restic -r rest:http://localhost:8000/test2/ init
+
+restic -r rest:http://localhost:8000/test2 --verbose backup /workspaces/Programming/testRepo2/test2.txt
+
+echo "This is a test file V3" > /workspaces/Programming/testRepo2/test3.txt
+restic -r rest:http://localhost:8000/test3 --verbose backup /workspaces/Programming/testRepo2/test3.txt
+
+
+restic -r rest:http://localhost:8000/ restore latest --target /tmp/restoreTest --path /workspaces/Programming/testRepo2/test.txt
+restic -r rest:http://localhost:8000/test2 restore latest --target /tmp/restoreTest --path /workspaces/Programming/testRepo2/test2.txt
+
+
+
+#cleanup
+rm -r /workspaces/Programming/testRepo2/
+rm -r /tmp/restoreTest
+rm -r /tmp/restic
+rm /workspaces/Programming/rest-server/repoDB.db

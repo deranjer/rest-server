@@ -69,3 +69,43 @@ func NewHandler(server Server) *goji.Mux {
 
 	return mux
 }
+
+// NewWebHandler returns the handler for the webui.
+func NewWebHandler(webServer WebServer) *goji.Mux {
+	mux := goji.NewMux()
+
+	// if webServer.Debug {
+	// 	mux.Use(webServer.debugHandler)
+	// }
+
+	// if webServer.Log != "" {
+	// 	mux.Use(webServer.logHandler)
+	// }
+
+	mux.HandleFunc(pat.Get("/"), webServer.ServeHome)
+	mux.HandleFunc(pat.Get("/repo/:repoID"), webServer.ServeRepo)
+
+	// mux.HandleFunc(pat.Head("/config"), server.CheckConfig)
+	// mux.HandleFunc(pat.Head("/:repo/config"), server.CheckConfig)
+	// mux.HandleFunc(pat.Get("/config"), server.GetConfig)
+	// mux.HandleFunc(pat.Get("/:repo/config"), server.GetConfig)
+	// mux.HandleFunc(pat.Post("/config"), server.SaveConfig)
+	// mux.HandleFunc(pat.Post("/:repo/config"), server.SaveConfig)
+	// mux.HandleFunc(pat.Delete("/config"), server.DeleteConfig)
+	// mux.HandleFunc(pat.Delete("/:repo/config"), server.DeleteConfig)
+	// mux.HandleFunc(pat.Get("/:type/"), server.ListBlobs)
+	// mux.HandleFunc(pat.Get("/:repo/:type/"), server.ListBlobs)
+	// mux.HandleFunc(pat.Head("/:type/:name"), server.CheckBlob)
+	// mux.HandleFunc(pat.Head("/:repo/:type/:name"), server.CheckBlob)
+	// mux.HandleFunc(pat.Get("/:type/:name"), server.GetBlob)
+	// mux.HandleFunc(pat.Get("/:repo/:type/:name"), server.GetBlob)
+	// mux.HandleFunc(pat.Post("/:type/:name"), server.SaveBlob)
+	// mux.HandleFunc(pat.Post("/:repo/:type/:name"), server.SaveBlob)
+	// mux.HandleFunc(pat.Delete("/:type/:name"), server.DeleteBlob)
+	// mux.HandleFunc(pat.Delete("/:repo/:type/:name"), server.DeleteBlob)
+	// mux.HandleFunc(pat.Post("/"), server.CreateRepo)
+	// mux.HandleFunc(pat.Post("/:repo"), server.CreateRepo)
+	// mux.HandleFunc(pat.Post("/:repo/"), server.CreateRepo)
+
+	return mux
+}

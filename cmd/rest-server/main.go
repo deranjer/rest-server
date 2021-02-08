@@ -3,14 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 
-	restserver "github.com/restic/rest-server"
+	restserver "github.com/deranjer/rest-server"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +30,10 @@ var cmdRoot = &cobra.Command{
 var server = restserver.Server{
 	Path:   "/tmp/restic",
 	Listen: ":8000",
+}
+
+var webserver = restserver.WebServer{
+	Listen: ":8001",
 }
 
 var (
@@ -90,7 +96,25 @@ func getHandler(server restserver.Server) (http.Handler, error) {
 	return server.AuthHandler(htpasswdFile, mux), nil
 }
 
+func getWebuiHandler(webServer restserver.WebServer) (http.Handler, error) {
+	mux := restserver.NewWebHandler(webServer)
+	return mux, nil
+}
+
 func runRoot(cmd *cobra.Command, args []string) error {
+	// Creating the database and sending it to the server and webserver
+	db := restserver.OpenOrCreateDatabase()
+	server.Database = db
+	webserver.Database = db
+	webserver.RootPath = server.Path //Set the root path for webserver to determine which repo
+	defer db.Close()                 // close db after main func ends
+	// Setting up the partials for the webui
+	tSet, err := template.ParseGlob("webui/templates/*")
+	if err != nil {
+		log.Fatal("Unable to parse templates: ", err)
+	}
+	webserver.Tset = tSet
+
 	if showVersion {
 		fmt.Printf("rest-server %s compiled with %v on %v/%v\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
@@ -117,6 +141,11 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		log.Fatalf("error: %v", err)
 	}
 
+	webuiHandler, err := getWebuiHandler(webserver)
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
 	if server.PrivateRepos {
 		log.Println("Private repositories enabled")
 	} else {
@@ -128,8 +157,19 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if !enabledTLS {
+		wg := new(sync.WaitGroup)
+		wg.Add(2)
 		log.Printf("Starting server on %s\n", server.Listen)
-		err = http.ListenAndServe(server.Listen, handler)
+		go func() {
+			log.Fatal(http.ListenAndServe(server.Listen, handler))
+			wg.Done()
+		}()
+		go func() {
+			log.Fatal(http.ListenAndServe(webserver.Listen, webuiHandler))
+			wg.Done()
+		}()
+		wg.Wait()
+
 	} else {
 
 		log.Println("TLS enabled")
